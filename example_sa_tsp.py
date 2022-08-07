@@ -13,8 +13,8 @@ def cal_total_distance(routine):
     return sum([distance_matrix[int(routine[i % num_points]), int(routine[(i + 1) % num_points])] for i in range(num_points)])
 
 sa_tsp=SA(
-    cal_total_distance,
-    list(range(num_points)),
+    func=cal_total_distance,
+    x0=list(range(num_points)),
     udf_new_x=TSP_new_x
 )
 
