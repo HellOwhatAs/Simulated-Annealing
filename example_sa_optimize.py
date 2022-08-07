@@ -8,8 +8,7 @@ sa=SA(
     func=func,
     x0=[5,5],
     lb=[-5,-5],
-    ub=[5,5],
-    udf_new_x=None
+    ub=[5,5]
 )
 best_x=sa.run()
 best_y=func(best_x)
