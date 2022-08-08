@@ -3,11 +3,10 @@
 #include <random>
 namespace py = pybind11;
 using namespace std;
-default_random_engine randg(time(0));
+default_random_engine randg(time(NULL));
 vector<double> TSP_new_x(const vector<double>& _x, double T) {
 	vector<double> x = _x;
 	int new_x_strategy = uniform_int_distribution<int>(0, 2)(randg);
-	//cout << new_x_strategy << '\n';
 	switch (new_x_strategy) {
 	case 0: {
 		uniform_int_distribution<int> rtmp(0, x.size() - 2);
@@ -35,7 +34,6 @@ vector<double> TSP_new_x(const vector<double>& _x, double T) {
 		for (auto i = &x[tmp[0]]; i < &x[tmp[1]]; ++i)ret.push_back(*i);
 		for (auto i = &x[tmp[1]]; i < &x[tmp[2]]; ++i)ret.push_back(*i);
 		for (auto i = &x[tmp[2]]; i < &x[x.size()]; ++i)ret.push_back(*i);
-		//x = ret;
 		ret.swap(x);
 	}break;
 	}
@@ -44,8 +42,8 @@ vector<double> TSP_new_x(const vector<double>& _x, double T) {
 class _SA {
 private:
 	py::function _func,_udf_new_x;
-	bool _has_bounds = 0,_udfx=0;
-	vector<double> _x0, __x0, _lb, _ub;
+	bool _has_lowerbounds = 0, _has_upperbounds = 0, _udfx = 0;
+	vector<double> _x0, _lb, _ub;
 	double _T_max, _T_min, _T, _cool_down;
 	int _L, _max_stay_counter, _n_dim, _hop = 10;
 public:
@@ -55,13 +53,16 @@ public:
 			_udfx = 1;
 			_udf_new_x = udf_new_x;
 		}
-		__x0 = _x0 = x0;
-		if (lb.size()!=0 && ub.size()!=0) {
+		_x0 = x0;
+		if (lb.size() != 0) {
 			if (lb.size() == x0.size())_lb = lb;
 			else _lb.resize(x0.size(), lb[0]);
+			_has_lowerbounds = 1;
+		}
+		if (ub.size() != 0) {
 			if (ub.size() == x0.size())_ub = ub;
 			else _ub.resize(x0.size(), ub[0]);
-			_has_bounds = 1;
+			_has_upperbounds = 1;
 		}
 		_n_dim = x0.size();
 		_T_max = T_max;
@@ -78,10 +79,6 @@ public:
 		for (int i = 0; i < x.size();++i) {
 			double r = randu(randg);
 			u[i] = x[i] + ((r > 0 ? 1 : (r == 0 ? 0 : -1)) * _T * (pow((1 + 1.0 / _T), (r < 0 ? -r : r)) - 1.0)) * _hop;
-			if (_has_bounds) {
-				u[i] = max(u[i], _lb[i]);
-				u[i] = min(u[i], _ub[i]);
-			}
 		}
 		return u;
 	}
@@ -95,6 +92,12 @@ public:
 			bool changed = 0;
 			for (int i = 0; i < _L; ++i) {
 				auto new_x = (_udfx)?_udf_new_x(_x0,_T).cast<vector<double>>():get_new_x(_x0);
+				if (_has_lowerbounds)for (int index = 0; index < new_x.size(); ++index) {
+					new_x[index] = max(new_x[index], _lb[index]);
+				}
+				if (_has_upperbounds)for (int index = 0; index < new_x.size(); ++index) {
+					new_x[index] = min(new_x[index], _ub[index]);
+				}
 				double new_y = _func(new_x).cast<double>();
 				if (new_y < t_best_y) {
 					t_best_x = new_x;
